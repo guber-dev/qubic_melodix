@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "version": 1,
+    "title": "Stupid",
+    "artist": "Toni Braxton", 
+    "difficulty": "Normal",
+    "previewStart": 0,
+    "previewEnd": 10,
+    "music": "/songs/test/Toni Braxton - Stupid.mp3",
+    "mode": "4K",
+    "keys": 4,
+    "length": 30
+  },
+  "timing": [
+    {
+      "time": 0,
+      "bpm": 120
+    }
+  ],
+  "notes": [
+    {
+      "time": 2.0,
+      "type": 1,
+      "lane": 0
+    },
+    {
+      "time": 4.0,
+      "type": 1,
+      "lane": 1
+    },
+    {
+      "time": 6.0,
+      "type": 1,
+      "lane": 2
+    },
+    {
+      "time": 8.0,
+      "type": 1,
+      "lane": 3
+    }
+  ]
+} 

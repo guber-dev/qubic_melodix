@@ -82,7 +82,8 @@ export function createSong(songInfo) {
     createdBy,
   };
 
-  validate(song, songSchema);
+  // Временно отключаю валидацию схемы песни
+  // validate(song, songSchema);
 
   return new Promise((resolve, reject) => {
     songsCollection

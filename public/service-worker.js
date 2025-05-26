@@ -1,4 +1,4 @@
-const FILES_TO_CACHE = ["/offline.html", "/style.css", "/assets/logo2.png"];
+const FILES_TO_CACHE = ["/offline.html", "/style.css", "/assets/melodix_logo.png"];
 const CACHE_NAME = "rhythm_plus";
 
 self.addEventListener("install", (evt) => {

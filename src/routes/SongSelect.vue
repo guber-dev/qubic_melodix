@@ -3,43 +3,6 @@
     <v-bar class="fullPage">
       <div class="pageTitle">Song Select</div>
 
-      <div class="cat flex_hori">
-        <div
-          class="cat_tab"
-          :class="{ active: tab == 'recom' }"
-          @mouseenter="handleHover"
-          @click="changeTab('recom')"
-        >
-          Recommended
-        </div>
-        <div
-          class="cat_tab"
-          :class="{ active: tab == 'new' }"
-          @mouseenter="handleHover"
-          @click="changeTab('new')"
-        >
-          New
-        </div>
-        <div
-          class="cat_tab"
-          :class="{ active: tab == 'all' }"
-          @mouseenter="handleHover"
-          @click="changeTab('all')"
-        >
-          All Songs
-        </div>
-      </div>
-
-      <div class="reflow1">
-        <div class="new-info flex_hori" v-if="tab == 'new'">
-          <v-icon name="info-circle" style="padding-right: 10px"></v-icon>
-          <div>
-            We cannot yet guarantee the quality of new sheets, accurate beatmaps
-            will be selected to the recommended songs periodically.
-          </div>
-        </div>
-      </div>
-
       <div class="list_and_detail">
         <!-- song list -->
         <div
@@ -47,24 +10,6 @@
           :class="{ list_collapsed: selectedSong }"
         >
           <div class="reflow2 song_list">
-            <div v-if="tab == 'recom'">
-              <div
-                class="btn-action btn-dark btn-more"
-                @click="changeTab('new')"
-              >
-                More >
-              </div>
-              <div class="subtitle">Latest</div>
-
-              <SongList
-                class="latest_song_list"
-                :sorter="false"
-                :songs="latestSongList"
-                @selected="selectedSong = $event"
-              ></SongList>
-
-              <div class="subtitle" style="padding-bottom: 20px">For you</div>
-            </div>
           </div>
 
           <SongList
@@ -72,38 +17,8 @@
             :songs="songList"
             @selected="selectedSong = $event"
             ref="list"
+            :sorter="false"
           >
-            <template v-slot:top>
-              <!-- tutorial button -->
-              <div
-                class="btn-action btn-dark big-add"
-                key="btn0"
-                @click="$router.push('/tutorial/')"
-              >
-                <v-icon class="add-icon" name="question-circle" scale="2" />
-                <div style="font-size: 1.2em">Play Tutorial</div>
-              </div>
-            </template>
-            <template v-slot:bottom>
-              <!-- create song button -->
-              <div
-                class="btn-action btn-dark big-add"
-                key="btn1"
-                @click="$router.push('/studio/')"
-              >
-                <v-icon class="add-icon" name="plus" scale="2" />
-                <div>Create or Import a Song</div>
-              </div>
-              <!-- suggest song button -->
-              <div
-                class="btn-action btn-dark big-add"
-                key="btn2"
-                @click="$refs.suggest.show()"
-              >
-                <v-icon class="add-icon" name="lightbulb" scale="2" />
-                <div>Suggest a Song</div>
-              </div>
-            </template>
           </SongList>
         </div>
 
@@ -122,8 +37,19 @@
 
       <!-- loading -->
       <Loading :show="!songList || songList.length === 0" :delay="true"
-        >Fetching Latest Songs...</Loading
+        >Fetching Songs...</Loading
       >
+      
+      <!-- Debug panel -->
+      <div style="position: fixed; top: 100px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; color: white; font-size: 12px; z-index: 1000; border-radius: 5px;" v-if="true">
+        <div><strong>DEBUG INFO</strong></div>
+        <div>Всего песен: {{ songList ? songList.length : 0 }}</div>
+        <div>Пользовательских чартов: {{ debugChartsCount }}</div>
+        <div>LocalStorage ключи: {{ debugLocalStorageCount }}</div>
+        <button @click="showLocalStorageContent" style="margin: 5px; padding: 5px; font-size: 10px;">Показать localStorage</button>
+        <button @click="clearAllUserCharts" style="margin: 5px; padding: 5px; font-size: 10px; background: red; color: white;">Очистить чарты</button>
+        <button @click="forceShowTestSongs" style="margin: 5px; padding: 5px; font-size: 10px; background: green; color: white;">Показать тестовые</button>
+      </div>
 
       <!-- song suggestion modal -->
       <Modal
@@ -154,16 +80,187 @@ import SongList from "../components/menus/SongList.vue";
 import Loading from "../components/ui/Loading.vue";
 import Modal from "../components/ui/Modal.vue";
 import {
-  getSheetList,
-  getSongListCached,
-  getPlaylist,
-  getSongsInIdArray,
+  // getSheetList, // Оставляем, так как может понадобиться для загрузки чартов при выборе песни
+  // getSongList, // Удаляем
+  // getPlaylist, // Удаляем
+  // getSongsInIdArray, // Удаляем
 } from "../javascript/db";
 import "vue-awesome/icons/lightbulb";
 import "vue-awesome/icons/question-circle";
 import { logEvent } from "../helpers/analytics";
 import "vue-awesome/icons/info-circle";
 import smoothReflow from "vue-smooth-reflow";
+
+// Система управления чартами
+class ChartManager {
+  static getAllCharts() {
+    try {
+      const charts = localStorage.getItem('melodixCharts');
+      return charts ? JSON.parse(charts) : {};
+    } catch (error) {
+      console.error('[ChartManager] Ошибка загрузки чартов:', error);
+      return {};
+    }
+  }
+
+  static saveChart(chartId, chartData) {
+    try {
+      const charts = this.getAllCharts();
+      charts[chartId] = {
+        ...chartData,
+        dateUpdated: { seconds: Date.now() / 1000 },
+        id: chartId
+      };
+      localStorage.setItem('melodixCharts', JSON.stringify(charts));
+      console.log(`[ChartManager] Чарт ${chartId} сохранен`);
+      return true;
+    } catch (error) {
+      console.error('[ChartManager] Ошибка сохранения чарта:', error);
+      return false;
+    }
+  }
+
+  static deleteChart(chartId) {
+    try {
+      const charts = this.getAllCharts();
+      delete charts[chartId];
+      localStorage.setItem('melodixCharts', JSON.stringify(charts));
+      console.log(`[ChartManager] Чарт ${chartId} удален`);
+      return true;
+    } catch (error) {
+      console.error('[ChartManager] Ошибка удаления чарта:', error);
+      return false;
+    }
+  }
+
+  static chartExists(chartId) {
+    const charts = this.getAllCharts();
+    return charts.hasOwnProperty(chartId);
+  }
+
+  static getChartsAsSongList() {
+    const charts = this.getAllCharts();
+    return Object.values(charts).map(chart => ({
+      id: chart.id,
+      title: chart.meta.title || "Untitled",
+      artist: chart.meta.artist || "Unknown Artist",
+      image: "/songs/test/local.jpg", // Дефолтная картинка
+      dateUpdated: chart.dateUpdated,
+      sheetList: [
+        {
+          sheetId: chart.id,
+          songId: chart.id,
+          difficulty: chart.meta.difficulty || "Normal",
+          mode: chart.meta.mode || "4K",
+          difficultyRating: 3,
+          length: 30
+        }
+      ]
+    }));
+  }
+
+  static saveMusicFile(chartId, file) {
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        localStorage.setItem(`melodix_music_${chartId}`, dataUrl);
+        console.log(`[ChartManager] Музыка для чарта ${chartId} сохранена как DataURL`);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('[ChartManager] Ошибка сохранения музыки:', error);
+    }
+  }
+
+  static getMusicDataUrl(chartId) {
+    try {
+      return localStorage.getItem(`melodix_music_${chartId}`);
+    } catch (error) {
+      console.error('[ChartManager] Ошибка загрузки музыки:', error);
+      return null;
+    }
+  }
+
+  // Функция миграции старых чартов
+  static migrateOldCharts() {
+    try {
+      const oldChart = localStorage.getItem('localChart');
+      if (oldChart) {
+        const chart = JSON.parse(oldChart);
+        const chartId = 'migrated_' + Date.now();
+        
+        // Сохраняем старый чарт в новой системе
+        const success = this.saveChart(chartId, chart);
+        if (success) {
+          console.log('[ChartManager] Старый чарт мигрирован:', chartId);
+          // Удаляем старый чарт
+          localStorage.removeItem('localChart');
+          return chartId;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('[ChartManager] Ошибка миграции:', error);
+      return null;
+    }
+  }
+}
+
+// Тестовые данные (будут показываться только если нет пользовательских чартов)
+const testSongsData = [
+  {
+    id: "tame_impala",
+    title: "The Less I Know The Better",
+    artist: "Tame Impala",
+    image: "/songs/test/local.jpg",
+    dateUpdated: { seconds: Date.now() / 1000 - 86400 }, // Вчера
+    sheetList: [
+      {
+        sheetId: "tame_impala",
+        songId: "tame_impala", 
+        difficulty: "Normal",
+        mode: "4K",
+        difficultyRating: 3,
+        length: 30
+      }
+    ]
+  },
+  {
+    id: "bronx",
+    title: "Stupid",
+    artist: "Toni Braxton",
+    image: "/songs/test/cover.jpg",
+    dateUpdated: { seconds: Date.now() / 1000 - 172800 }, // Позавчера
+    sheetList: [
+      {
+        sheetId: "bronx",
+        songId: "bronx", 
+        difficulty: "Normal",
+        mode: "4K",
+        difficultyRating: 3,
+        length: 30
+      }
+    ]
+  },
+  {
+    id: "vladimir",
+    title: "Vladimirskiy Tsentral", 
+    artist: "Mikhail Krug",
+    image: "/songs/test/vladimir.jpg",
+    dateUpdated: { seconds: Date.now() / 1000 - 259200 }, // Три дня назад
+    sheetList: [
+      {
+        sheetId: "vladimir",
+        songId: "vladimir",
+        difficulty: "Normal",
+        mode: "4K",
+        difficultyRating: 3,
+        length: 30
+      }
+    ]
+  }
+];
 
 export default {
   name: "SongSelect",
@@ -175,97 +272,168 @@ export default {
   },
   data() {
     return {
-      allSongs: null,
-      songList: null,
+      allSongs: null, // Будет содержать тестовые данные
+      songList: [],
       latestSongList: null,
-      sheetList: null,
+      sheetList: [],
       selectedSong: null,
-      tab: "recom",
     };
   },
-  computed: {},
-  watch: {
-    async selectedSong() {
-      this.sheetList = null;
-      if (this.selectedSong) {
-        this.sheetList = await getSheetList(this.selectedSong.id);
-        logEvent("song_selected", { id: this.selectedSong.id });
+  computed: {
+    debugChartsCount() {
+      try {
+        const charts = ChartManager.getAllCharts();
+        return Object.keys(charts || {}).length;
+      } catch (error) {
+        return 0;
       }
     },
-    async tab() {
-      if (this.tab == "recom") {
-        await this.filterRecommended(true);
-        this.$refs.list.sort("title");
-      } else if (this.tab == "new") {
-        await this.getNewSongs();
-        this.$refs.list.sort("date");
-      } else if (this.tab == "all") {
-        await this.getAllSongs();
-        this.songList = this.allSongs;
-        this.$refs.list.sort("title");
+    debugLocalStorageCount() {
+      try {
+        return Object.keys(localStorage || {}).length;
+      } catch (error) {
+        return 0;
       }
-    },
+    }
   },
   mixins: [smoothReflow],
-  mounted() {
-    this.filterRecommended(true);
-    const transitionEvent = {
-      selector: "div",
-    };
-    this.$smoothReflow([
-      {
-        el: ".reflow1",
-        transitionEvent,
-      },
-      {
-        el: ".reflow2",
-        transitionEvent,
-      },
-    ]);
+  async mounted() {
+    // Мигрируем старые чарты, если они есть
+    const migratedChartId = ChartManager.migrateOldCharts();
+    if (migratedChartId) {
+      console.log('[SongSelect] Мигрирован старый чарт:', migratedChartId);
+    }
+    
+    // ВРЕМЕННО: всегда показываем тестовые данные для отладки
+    this.allSongs = [...testSongsData]; // Создаем копию массива
+    console.log('[SongSelect] Показываем тестовые песни для отладки');
+    
+    // Загружаем чарты из localStorage через ChartManager
+    // const userCharts = ChartManager.getChartsAsSongList();
+    
+    // Показываем тестовые данные только если нет пользовательских чартов
+    // if (userCharts && userCharts.length > 0) {
+    //   this.allSongs = userCharts;
+    //   console.log('[SongSelect] Загружено пользовательских чартов:', userCharts.length);
+    // } else {
+    //   this.allSongs = [...testSongsData]; // Создаем копию массива
+    //   console.log('[SongSelect] Показываем тестовые песни');
+    // }
+    
+    this.songList = this.songListSortByDate();
+    
+    // Сортируем по дате (самые новые сверху)
+    if (this.$refs.list) {
+      this.$refs.list.sort("date");
+      this.$refs.list.reverseSort = true;
+    }
+
+    // Слушаем событие сохранения чарта для автоматического обновления
+    this.$root.$on('chart-saved', this.refreshSongList);
+  },
+  beforeDestroy() {
+    // Убираем слушатель при уничтожении компонента
+    this.$root.$off('chart-saved', this.refreshSongList);
   },
   methods: {
-    changeTab(tab) {
-      this.tab = tab;
-      this.$store.state.audio.playEffect("ui/slide2");
-    },
     handleHover() {
       this.$store.state.audio.playHoverEffect("ui/ta");
     },
-    async getAllSongs() {
-      if (!this.allSongs) this.allSongs = await getSongListCached();
+        async getAllSongs(getUserOwned) {
+      // ВРЕМЕННО: всегда показываем тестовые данные для отладки
+      this.allSongs = testSongsData;
+      console.log('[SongSelect] Показываем тестовые песни для отладки');
+      
+      // Загружаем чарты из localStorage через ChartManager
+      // const userCharts = ChartManager.getChartsAsSongList();
+      
+      // Показываем тестовые данные только если нет пользовательских чартов
+      // if (userCharts.length > 0) {
+      //   this.allSongs = userCharts;
+      //   console.log('[SongSelect] Обновлено пользовательских чартов:', userCharts.length);
+      // } else {
+      //   this.allSongs = testSongsData;
+      //   console.log('[SongSelect] Пользовательских чартов нет, показываем тестовые:', testSongsData.length);
+      // }
+      
+      this.songList = this.songListSortByDate();
+       if (this.$refs.list) {
+         this.$refs.list.sort("date");
+         this.$refs.list.reverseSort = true;
+       }
     },
-    async filterRecommended(getRecommened) {
-      await this.getAllSongs();
-      const playlist = await getPlaylist("recommended");
-      if (!this.latestSongList) {
-        this.latestSongList = this.songListSortByDate().slice(-3);
-      }
-      if (getRecommened) {
-        this.songList = this.allSongs.filter((e) =>
-          playlist.items.includes(e.id)
-        );
-      } else {
-        this.songList = this.allSongs.filter(
-          (e) => !playlist.items.includes(e.id)
-        );
-      }
-    },
-    async getNewSongs() {
-      await this.getAllSongs();
-      this.songList = this.songListSortByDate().slice(-35);
-    },
+
     songListSortByDate() {
-      if (!this.allSongs) return null;
+      if (!this.allSongs || this.allSongs.length === 0) {
+        return [];
+      }
+      // Сортировка по дате: b.dateUpdated.seconds - a.dateUpdated.seconds для новых сверху
       return [...this.allSongs].sort(
-        (a, b) => a.dateUpdated.seconds - b.dateUpdated.seconds
+        (a, b) => b.dateUpdated.seconds - a.dateUpdated.seconds
       );
     },
-    getPlaylistSongs(playlistId) {
-      getPlaylist(playlistId).then(async (res) => {
-        const list = res.items;
-        this.songList = await getSongsInIdArray(false, false, list);
-      });
+
+    // Добавляю watcher для selectedSong, который был закомментирован
+    async getSheetsForSelectedSong() {
+       this.sheetList = null; // Сбрасываю список чартов при выборе новой песни
+       if (this.selectedSong && this.selectedSong.sheetList) {
+         // Для локальных тестовых песен берем sheetList из тестовых данных
+         this.sheetList = this.selectedSong.sheetList;
+         logEvent("song_selected", { id: this.selectedSong.id });
+       } else if (this.selectedSong) {
+         // Если это не локальная тестовая песня (например, если добавите другие позже)
+         // пытаемся загрузить чарты из базы (если нужно)
+          // this.sheetList = await getSheetList(this.selectedSong.id, true, true); // Закомментировано для полной изоляции
+          // logEvent("song_selected", { id: this.selectedSong.id });
+          this.sheetList = []; // Просто пустой список для не-тестовых песен
+       }
+     },
+
+    // Добавляем метод для обновления списка (будет вызываться после сохранения чарта)
+    refreshSongList() {
+      this.getAllSongs();
     },
+
+    // Метод для очистки всех пользовательских чартов (для отладки)
+    clearAllUserCharts() {
+      if (confirm('Удалить ВСЕ пользовательские чарты? Это действие нельзя отменить!')) {
+        localStorage.removeItem('melodixCharts');
+        localStorage.removeItem('localChart'); // На всякий случай
+        this.refreshSongList();
+        this.$store.state.alert.success('Все пользовательские чарты удалены');
+      }
+    },
+
+    // Дебаг методы
+    getAllChartsDebug() {
+      return ChartManager.getAllCharts();
+    },
+
+    showLocalStorageContent() {
+      const charts = ChartManager.getAllCharts();
+      const allKeys = Object.keys(localStorage);
+      console.log('=== СОДЕРЖИМОЕ LOCALSTORAGE ===');
+      console.log('melodixCharts:', charts);
+      console.log('Все ключи localStorage:', allKeys);
+      allKeys.forEach(key => {
+        console.log(`${key}:`, localStorage.getItem(key));
+      });
+      alert(`Пользовательских чартов: ${Object.keys(charts).length}\nВсе ключи: ${allKeys.join(', ')}\nПодробности в консоли`);
+    },
+
+    forceShowTestSongs() {
+      console.log('[SongSelect] Принудительно показываем тестовые песни');
+      this.allSongs = testSongsData;
+      this.songList = this.songListSortByDate();
+      if (this.$refs.list) {
+        this.$refs.list.sort("date");
+        this.$refs.list.reverseSort = true;
+      }
+    },
+  },
+    watch: {
+      // Переношу watcher для selectedSong сюда
+     selectedSong: 'getSheetsForSelectedSong',
   },
 };
 </script>

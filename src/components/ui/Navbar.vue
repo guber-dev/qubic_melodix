@@ -17,18 +17,6 @@
           <div class="navtext">Song Select</div>
         </div>
       </router-link>
-      <router-link to="/studio/" tag="div">
-        <div class="nav">
-          <v-icon name="pencil-ruler" scale="1.7" />
-          <div class="navtext">My Studio</div>
-        </div>
-      </router-link>
-      <router-link to="/rankings/" tag="div">
-        <div class="nav">
-          <v-icon name="medal" scale="1.7" />
-          <span class="navtext">Rankings</span>
-        </div>
-      </router-link>
       <router-link to="/account/" tag="div">
         <div class="nav">
           <v-icon name="cog" scale="1.7" />
@@ -92,6 +80,7 @@ export default {
 <style>
 .fa-icon svg {
   box-shadow: 4px 3px 24px -2px rgba(0, 0, 0, 1);
+  fill: white;
 }
 
 .navbar {

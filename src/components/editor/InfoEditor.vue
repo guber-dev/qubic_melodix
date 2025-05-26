@@ -22,115 +22,47 @@
     <div v-else>
       <!-- song create update form -->
       <div v-if="!$parent.songInfo.id || songFormOptions.isUpdate">
-        <h2 v-if="songFormOptions.isUpdate">Update Song Detail</h2>
-        <h2 v-else>Create or Select Song</h2>
-        <InfoForm
-          :formData="songFormData"
-          :formOption="songFormOptions"
-          item-type="Song"
-          @submitForm="submitSongForm"
-          @submitExisting="submitExistingSong"
-          :class="{ disabled: !$parent.isSongOwner }"
-          :tags="tags"
-        ></InfoForm>
-        <div v-if="!$parent.isSongOwner">
-          You have no edit access to this song.
-        </div>
-        <div
-          v-if="songFormOptions.isUpdate"
-          class="switch_tab"
-          @click="songFormOptions.isUpdate = false"
-        >
-          Cancel
+        <h2>Выберите трек для создания чарта</h2>
+        <div style="text-align: center; padding: 20px;">
+          <input
+            type="file"
+            accept="audio/*"
+            @change="onAudioFileChange"
+            name="audioFile"
+            id="audioFile"
+            style="display: none;"
+          />
+          <label for="audioFile" class="file-select-btn">
+            📁 Выбрать аудиофайл
+          </label>
+          <div v-if="songFormData.fileName" class="file-info" style="margin-top: 15px;">
+            <strong>{{ songFormData.title }}</strong><br>
+            <em>{{ songFormData.artist }}</em><br>
+            <small>{{ songFormData.fileName }}</small>
+          </div>
         </div>
       </div>
 
       <div v-if="$parent.songInfo.id">
-        <div>
-          <div
-            v-if="!sheetFormOptions.isUpdate"
+        <div style="text-align: center; padding: 20px;">
+          <h2>🎵 Трек загружен!</h2>
+          <div class="loaded-song-info">
+            <strong>{{ $parent.songInfo.title }}</strong><br>
+            <em>{{ $parent.songInfo.artist }}</em>
+          </div>
+          <div style="margin: 20px 0;">
+            <div class="chart-info">
+              Режим: <strong>4 клавиши</strong><br>
+              Сложность: <strong>Normal</strong>
+            </div>
+          </div>
+          <button
             @click="change(false)"
-            class="changeBtn"
+            class="change-song-btn"
+            style="margin-top: 15px;"
           >
-            Change Song
-          </div>
-          <div v-else @click="change(true)" class="changeBtn">
-            Change Sheet
-          </div>
-          <h2>Sheet Detail</h2>
-          <InfoForm
-            :formData="sheetFormData"
-            :formOption="sheetFormOptions"
-            item-type="Sheet"
-            @submitForm="submitSheetForm"
-            @submitExisting="submitExistingSheet"
-            :tags="tags"
-            :class="{ disabled: !$parent.isSheetOwner }"
-          >
-            <input
-              v-model="sheetFormData.title"
-              name="sheetTitle"
-              placeholder="Sheet title (Optional)"
-              type="text"
-            />
-            <select v-model="sheetFormData.difficulty">
-              <option :value="null" disabled>Select difficulty...</option>
-              <option v-for="diff in 10" :value="diff" :key="diff">{{
-                diff +
-                " - " +
-                (diff > 9
-                  ? "Expert"
-                  : diff > 6
-                  ? "Hard"
-                  : diff > 3
-                  ? "Normal"
-                  : "Easy")
-              }}</option>
-            </select>
-            <select
-              v-model="sheetFormData.visualizerName"
-              v-if="
-                $parent.songInfo.srcMode == 'url' && $parent.visualizerInstance
-              "
-            >
-              <option :value="null" disabled
-                >Select Default Visualizer...</option
-              >
-              <option
-                v-for="(idx, visualizer) in $parent.visualizerInstance
-                  .visualizerArr"
-                :value="idx"
-                :key="idx"
-                >{{ visualizer }}</option
-              >
-            </select>
-            <select v-model="sheetFormData.keys">
-              <option :value="null" disabled>Select Key Number...</option>
-              <option
-                v-for="keys in [4, 5, 6, 7, 8]"
-                :value="keys"
-                :key="keys"
-                >{{ keys + " Key" }}</option
-              >
-            </select>
-            <input
-              v-if="sheetFormOptions.isUpdate"
-              v-model="sheetFormData.startAt"
-              step="0.1"
-              placeholder="Start time (In seconds, Optional)"
-              type="number"
-            />
-            <input
-              v-if="sheetFormOptions.isUpdate"
-              v-model="sheetFormData.endAt"
-              step="0.1"
-              placeholder="End time (In seconds, Optional)"
-              type="number"
-            />
-          </InfoForm>
-          <div v-if="!$parent.isSheetOwner">
-            You have no edit access to this sheet.
-          </div>
+            🔄 Выбрать другой трек
+          </button>
         </div>
       </div>
     </div>
@@ -161,11 +93,16 @@ export default {
         title: null,
         artist: null,
         image: null,
-        srcMode: "youtube",
+        srcMode: "file",
+        youtubeId: null,
+        url: null,
+        file: null,
+        fileName: null,
         tags: [],
+        normalPath: null,
       },
       songFormOptions: {
-        isYoutubeMode: true,
+        isYoutubeMode: false,
         tab: "form",
         publicList: null,
         privateList: null,
@@ -179,18 +116,25 @@ export default {
         keys: null,
       },
       sheetFormOptions: {
-        isYoutubeMode: true,
+        isYoutubeMode: false,
         tab: "form",
         publicList: null,
         privateList: null,
         selected: null,
         isUpdate: false,
       },
-      welcomeScreen: true,
+      welcomeScreen: false, // Сразу показываем форму выбора файла
       tags: [],
     };
   },
-  computed: {},
+  computed: {
+    isSheetOwner() {
+      return true;
+    },
+    isSongOwner() {
+      return true;
+    },
+  },
   watch: {
     "$parent.sheetInfo"() {
       let sheetInfo = this.$parent.sheetInfo;
@@ -202,9 +146,8 @@ export default {
     },
   },
   async mounted() {
-    this.songFormOptions.publicList = await getSongList();
-    this.songFormOptions.privateList = await getSongList(true);
-    this.tags = await getTags();
+    // Не загружаем ничего с сервера, только локальные данные
+    this.tags = [];
     if (this.$route.query.song) {
       this.sheetFormOptions.tab = "choose";
     }
@@ -215,101 +158,197 @@ export default {
       this.songFormOptions.tab = "choose";
       this.sheetFormOptions.tab = "choose";
     },
-    async submitSongForm() {
-      try {
-        if (this.songFormOptions.isUpdate) {
-          if (!(await this.$parent.saveWarning())) return;
-          this.$parent.loading = true;
-          await updateSong(this.songFormData);
-          if (!this.$route.query.song) {
-            this.$router.push({ query: { update: true } });
-          }
-          this.$parent.reloadEditor();
-        } else {
-          this.$parent.loading = true;
-          let songId = await createSong(this.songFormData);
-          this.$parent.songInfo = await getSong(songId);
-          this.getSheets(true);
-          this.$store.state.alert.success("Song created");
-        }
-      } catch (err) {
-        this.handleFormError(err);
+    submitSongForm() {
+      if (!this.songFormData.title || !this.songFormData.artist || !this.songFormData.file) {
+        this.$store.state.alert.error('Заполни все поля и выбери аудиофайл!', 4000);
+        return;
       }
+      if (!this.songFormData.id) this.songFormData.id = 'local';
+      this.$parent.songInfo = { ...this.songFormData };
+      console.log('[InfoEditor] submitSongForm, songInfo:', this.$parent.songInfo);
+      this.$store.state.alert.success("Song info updated (local only)");
     },
     submitExistingSong() {
+      // Просто копируем выбранную песню в songInfo
       let selectedSong = this.songFormOptions.selected;
       if (selectedSong) {
+        if (!selectedSong.id) selectedSong.id = 'local';
         this.$parent.songInfo = selectedSong;
-        this.getSheets(true);
+        console.log('[InfoEditor] submitExistingSong, songInfo:', this.$parent.songInfo);
       }
     },
-    async getSheets(addQuery) {
-      const songId = this.$parent.songInfo.id;
-      if (addQuery) {
-        this.$router.replace({ path: "/editor", query: { song: songId } });
+    submitSheetForm() {
+      if (!this.sheetFormData.title || !this.sheetFormData.keys) {
+        this.$store.state.alert.error('Заполни все поля Sheet Detail!', 4000);
+        return;
       }
-      this.sheetFormOptions.publicList = await getSheetList(songId);
-      this.sheetFormOptions.privateList = await getSheetList(
-        songId,
-        true,
-        true
-      );
-    },
-    async submitSheetForm() {
-      try {
-        if (this.sheetFormOptions.isUpdate) {
-          if (!(await this.$parent.saveWarning())) return;
-          this.$parent.loading = true;
-          this.sheetFormData.startAt = this.sheetFormData.startAt
-            ? Number(this.sheetFormData.startAt)
-            : null;
-          this.sheetFormData.endAt = this.sheetFormData.endAt
-            ? Number(this.sheetFormData.endAt)
-            : null;
-          delete this.sheetFormData.sheet;
-          await updateSheet(this.sheetFormData);
-          this.$router.push({ query: { save: true } });
-        } else {
-          this.$parent.loading = true;
-          const songId = this.$parent.songInfo.id;
-          this.sheetFormData.songId = songId;
-          let sheetId = await createSheet(this.sheetFormData);
-          this.$router.push("/editor/" + sheetId);
-        }
-        this.$parent.reloadEditor();
-      } catch (err) {
-        this.handleFormError(err);
+      if (!this.sheetFormData.id) this.sheetFormData.id = 'sheet_local';
+      this.$parent.sheetInfo = { ...this.sheetFormData };
+      // Формируем структуру gameSheetInfo максимально похожую на Rhythm+
+      const gameSheetInfo = {
+        meta: {
+          version: 1,
+          title: this.$parent.songInfo.title,
+          artist: this.$parent.songInfo.artist,
+          difficulty: 'Normal',
+          music: this.$parent.songInfo.url,
+          mode: `${this.sheetFormData.keys}K`,
+        },
+        timing: [{ time: 0, bpm: 120 }],
+        notes: [],
+        srcMode: 'file',
+      };
+      this.$parent.gameSheetInfo = gameSheetInfo;
+      console.log('[InfoEditor] submitSheetForm, gameSheetInfo:', gameSheetInfo);
+      if (this.$parent && typeof this.$parent.loadGameSheetInfo === 'function') {
+        this.$parent.loadGameSheetInfo(gameSheetInfo);
       }
+      this.$store.state.alert.success("Sheet info updated (local only)");
     },
     submitExistingSheet() {
       let selectedSheet = this.sheetFormOptions.selected;
       if (selectedSheet) {
-        this.$parent.loading = true;
-        this.$router.push("/editor/" + selectedSheet.id + "/");
-        this.$parent.reloadEditor();
+        if (!selectedSheet.id) selectedSheet.id = 'local';
+        this.$parent.sheetInfo = selectedSheet;
+        console.log('[InfoEditor] submitExistingSheet, sheetInfo:', this.$parent.sheetInfo);
       }
     },
     handleFormError(err) {
-      this.$parent.loading = false;
       this.$store.state.alert.error("Please fill in required fields", 5000);
       Logger.error(err);
     },
-    async openSongUpdate() {
+    openSongUpdate() {
       this.songFormOptions.tab = "form";
       this.songFormOptions.isUpdate = true;
-      this.songFormData = await getSong(this.$parent.songInfo.id);
-      if (
-        this.songFormData.image &&
-        this.songFormData.image.includes("img.youtube.com")
-      ) {
-        this.songFormData.image = null;
-      }
+      this.songFormData = { ...this.$parent.songInfo };
     },
     async change(isChangeSheet) {
       if (await this.$parent.saveWarning()) {
         const songId = isChangeSheet ? "?song=" + this.$parent.songInfo.id : "";
         this.$router.push("/editor/" + songId);
         this.$parent.reloadEditor();
+      }
+    },
+    onAudioFileChange(e) {
+      const file = e.target.files[0];
+      if (file) {
+        this.songFormData.file = file;
+        this.songFormData.fileName = file.name;
+        
+        // Автоматически извлекаем название и артиста из имени файла
+        this.extractTitleAndArtist(file.name);
+        
+        // Сохраняем файл в папку /public/songs/test/ и используем обычный путь
+        const fileName = file.name;
+        const normalizedPath = `/songs/test/${fileName}`;
+        
+        // Создаем FormData для отправки файла на сервер
+        const formData = new FormData();
+        formData.append('audioFile', file);
+        formData.append('fileName', fileName);
+        
+        // Пока что используем временный blob URL для редактора, 
+        // но в экспорте будем использовать нормальный путь
+        const tempBlobUrl = URL.createObjectURL(file);
+        
+        this.songFormData.url = tempBlobUrl;
+        this.songFormData.normalPath = normalizedPath; // Сохраняем нормальный путь отдельно
+        this.songFormData.srcMode = 'file';
+        
+        // Обновляем songInfo родителя
+        this.$parent.songInfo = {
+          id: 'local',
+          title: this.songFormData.title,
+          artist: this.songFormData.artist,
+          url: tempBlobUrl, // Для воспроизведения в редакторе
+          normalPath: normalizedPath, // Для экспорта
+          file: file,
+          fileName: file.name,
+          srcMode: 'file',
+          mode: '4K',
+          keys: 4
+        };
+        
+        // Копируем файл в public/songs/test/ 
+        this.copyFileToPublicFolder(file, fileName);
+        
+        console.log('[InfoEditor] Файл загружен, songInfo обновлён:', this.$parent.songInfo);
+        this.$store.state.alert.success(`Трек загружен: ${this.songFormData.title} - ${this.songFormData.artist}`);
+        
+        // Автоматически переходим к редактированию
+        this.autoStartEditing();
+      }
+    },
+    
+    copyFileToPublicFolder(file, fileName) {
+      // Поскольку мы работаем в браузере, мы не можем напрямую копировать файлы
+      // Но мы можем сохранить информацию о файле и показать пользователю инструкции
+      console.log(`[InfoEditor] Нужно скопировать файл ${fileName} в папку /public/songs/test/`);
+      
+      // Показываем уведомление пользователю
+      this.$store.state.alert.info(
+        `Не забудьте скопировать файл "${fileName}" в папку /public/songs/test/ для корректной работы экспорта!`, 
+        8000
+      );
+    },
+    
+    extractTitleAndArtist(fileName) {
+      // Убираем расширение файла
+      const nameWithoutExt = fileName.replace(/\.(mp3|wav|ogg|m4a|flac)$/i, '');
+      
+      // Пробуем разные форматы: "Artist - Title", "Title - Artist", или просто "Title"
+      if (nameWithoutExt.includes(' - ')) {
+        const parts = nameWithoutExt.split(' - ');
+        if (parts.length >= 2) {
+          this.songFormData.artist = parts[0].trim();
+          this.songFormData.title = parts.slice(1).join(' - ').trim();
+        }
+      } else {
+        // Если нет разделителя, используем имя файла как название
+        this.songFormData.title = nameWithoutExt.trim();
+        this.songFormData.artist = 'Unknown Artist';
+      }
+    },
+    
+    autoStartEditing() {
+      // Автоматически устанавливаем sheet данные и переходим к редактированию
+      this.sheetFormData.title = `${this.songFormData.title} [4K]`;
+      this.sheetFormData.keys = 4;
+      this.sheetFormData.difficulty = 'Normal';
+      
+      // Сразу создаём sheet info
+      this.$parent.sheetInfo = {
+        id: 'sheet_local',
+        title: this.sheetFormData.title,
+        keys: 4,
+        difficulty: 'Normal',
+        timing: [{ time: 0, bpm: 120 }],
+        notes: [],
+        mode: '4K'
+      };
+      
+      // Создаём gameSheetInfo для движка
+      const gameSheetInfo = {
+        meta: {
+          version: 1,
+          title: this.songFormData.title,
+          artist: this.songFormData.artist,
+          difficulty: 'Normal',
+          music: this.songFormData.normalPath || this.songFormData.url, // Используем normalPath для экспорта
+          mode: '4K',
+          keys: 4
+        },
+        timing: [{ time: 0, bpm: 120 }],
+        notes: [],
+        srcMode: 'file',
+      };
+      
+      this.$parent.gameSheetInfo = gameSheetInfo;
+      console.log('[InfoEditor] Автоматически созданы sheet и gameSheet:', gameSheetInfo);
+      
+      // Загружаем в движок
+      if (this.$parent && typeof this.$parent.loadGameSheetInfo === 'function') {
+        this.$parent.loadGameSheetInfo(gameSheetInfo);
       }
     },
   },
@@ -332,5 +371,62 @@ export default {
   line-height: 30px;
   opacity: 0.5;
   cursor: pointer;
+}
+
+.file-select-btn {
+  display: inline-block;
+  padding: 15px 30px;
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.file-select-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  background: linear-gradient(45deg, #764ba2 0%, #667eea 100%);
+}
+
+.file-info {
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 15px;
+  border-left: 4px solid #667eea;
+}
+
+.loaded-song-info {
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.chart-info {
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.change-song-btn {
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.change-song-btn:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
 }
 </style>

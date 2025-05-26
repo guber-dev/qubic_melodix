@@ -51,18 +51,6 @@
         </div>
       </div>
     </div>
-
-    <div class="shadow" v-else @click="goToAccount">
-      <div
-        style="padding: 10px;"
-        v-if="!extend"
-        v-html="$store.state.initialized ? 'Login &<br>Register' : 'Loading...'"
-      ></div>
-      <div style="opacity: 0.5; padding: 15px;" v-else>
-        Login or Register now
-        <br />to save your progress and exp
-      </div>
-    </div>
   </div>
 </template>
 

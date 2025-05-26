@@ -10,11 +10,12 @@
     ></PageBackground>
     <ModalGlobal ref="gm"></ModalGlobal>
     <FloatingAlert ref="alert"></FloatingAlert>
+    <!-- <QubicWallet class="qubic-wallet-container" /> -->
     <transition name="fade" v-if="$store.state.audio">
       <div class="center" v-if="maintenanceMsg">
         <h1>{{ maintenanceMsg.title }}</h1>
         <div v-html="maintenanceMsg.body"></div>
-        <img src="/assets/logo2.png" class="maintenance_logo" />
+        <img src="/assets/melodix_logo.png" class="maintenance_logo" />
         <div
           v-if="maintenanceMsg.showUpdateButton"
           class="btn-action btn-dark"
@@ -34,7 +35,7 @@
       </keep-alive>
       <div v-else>
         <div class="center blink_me">
-          <img src="/assets/logo2.png" class="loading_logo" />
+          <img src="/assets/melodix_logo.png" class="loading_logo" />
           <div>Logging you in...</div>
         </div>
       </div>
@@ -48,7 +49,7 @@ import ModalGlobal from "./components/ui/ModalGlobal.vue";
 import FloatingAlert from "./components/ui/FloatingAlert.vue";
 import PageBackground from "./components/common/PageBackground.vue";
 import { logEvent } from "./helpers/analytics";
-import semver from "semver";
+// semver убран так как проверка версий отключена
 import "vue-awesome/icons/volume-up";
 import "vue-awesome/icons/volume-mute";
 import "vue-awesome/icons/expand";
@@ -60,6 +61,7 @@ import "vue-awesome/icons/sign-out-alt";
 import "vue-awesome/icons/play";
 import "vue-awesome/icons/pause";
 import "vue-awesome/icons/arrow-right";
+import QubicWallet from "./components/wallet/QubicWallet.vue";
 
 export default {
   name: "App",
@@ -67,6 +69,7 @@ export default {
     ModalGlobal,
     FloatingAlert,
     PageBackground,
+    QubicWallet,
   },
   mounted() {
     this.$store.commit("setAudio", new Audio());
@@ -140,46 +143,11 @@ export default {
     },
   },
   watch: {
-    async "$store.state.remoteConfig"(config) {
-      // const config = this.$store.state.remoteConfig;
-      if (!config) return;
-      const currentVersion = this.$store.state.appVersion;
-      const minimumVersion = config.minimumVersion._value;
-
-      if (semver.lt(currentVersion, minimumVersion)) {
-        // show if current version is lower than minimum
-        const msg = config.versionTooOldMessage;
-        this.maintenanceMsg = JSON.parse(msg._value);
-        logEvent("update_required_msg_showed", null, "system");
-      } else if (config.maintenanceMode._value === "true") {
-        // show otherwise: if has maintenance message
-        const msg = config.maintenanceMessage;
-        this.maintenanceMsg = JSON.parse(msg._value);
-        logEvent("maintenance_mode_showed", null, "system");
-      } else if (config.showNotification._value === "true") {
-        // show otherwise: if has upcoming update notification
-        logEvent("upcoming_update_warning_showed", null, "system");
-        const msg = JSON.parse(config.notification._value);
-        await this.$store.state.gModal.show({
-          titleText: msg.title,
-          bodyText: msg.body,
-          showCancel: false,
-        });
-        this.$store.state.alert.warn(msg.short, 8000);
-      }
-
-      if (this.maintenanceMsg) {
-        this.maintenanceMsg = {
-          currentVersion,
-          minimumVersion,
-          build: this.$store.state.build,
-          ...this.maintenanceMsg,
-        };
-      }
-    },
+    // Отключили проверку версий с серверов Rhythm Plus для независимости
+    // async "$store.state.remoteConfig"(config) { ... },
     $route(to) {
       const pageTitle = to.meta.title ? to.meta.title + " - " : "";
-      document.title = pageTitle + "Rhythm+ Music Game";
+      document.title = pageTitle + "Melodix - Rhythm Game";
     },
   },
 };
@@ -212,5 +180,12 @@ export default {
 .center a {
   color: rgb(127, 255, 255);
   text-decoration: underline;
+}
+
+.qubic-wallet-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
 }
 </style>

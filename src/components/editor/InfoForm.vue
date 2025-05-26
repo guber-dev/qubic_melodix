@@ -1,136 +1,60 @@
 <template>
-  <div>
-    <form
-      @submit.prevent="$emit('submitForm')"
-      v-if="formOption.tab === 'form'"
-    >
-      <slot>
-        <input
-          v-model="formData.title"
-          name="songTitle"
-          placeholder="Song title"
-          type="text"
-        />
-        <input
-          v-model="formData.subtitle"
-          name="songTitle"
-          placeholder="Subtitle (E.g. xxx opening song, Optional)"
-          type="text"
-        />
-        <input
-          v-model="formData.artist"
-          name="artist"
-          placeholder="Artist"
-          type="text"
-        />
-        <v-select
-          class="songSelect"
-          :options="tags"
-          v-model="formData.tags"
-          placeholder="Tags"
-          taggable
-          multiple
-          push-tags
-        ></v-select>
-        <select id="songSelect" v-model="formData.srcMode">
-          <option :value="null" disabled>Select music source...</option>
-          <option value="youtube">Youtube Video</option>
-          <option value="url">MP3 File URL</option>
-        </select>
-        <!-- youtube mode -->
-        <div v-if="formData.srcMode === 'youtube'">
-          <input
-            v-model="formData.youtubeId"
-            name="youtubeId"
-            placeholder="Youtube ID"
-            type="text"
-          />
-          <input
-            v-model="formData.image"
-            name="image"
-            placeholder="Image URL (Optional)"
-            type="text"
-          />
+  <div class="form">
+    <div v-if="formOption.tab === 'form'">
+      <slot></slot>
+      <div class="tags">
+        <div
+          v-for="tag in tags"
+          :key="tag"
+          :class="{ tag: true, active: formData.tags.includes(tag) }"
+          @click="toggleTag(tag)"
+        >
+          {{ tag }}
         </div>
-        <!-- url mode -->
-        <div v-if="formData.srcMode === 'url'">
-          <input
-            v-model="formData.url"
-            name="url"
-            placeholder="MP3 URL (https://**.mp3)"
-            type="text"
-          />
-          <input
-            v-model="formData.youtubeId"
-            name="youtubeId"
-            placeholder="Youtube ID (for thumbnail)"
-            type="text"
-          />
-          <input
-            v-model="formData.image"
-            name="image"
-            placeholder="Image URL (Optional)"
-            type="text"
-          />
+      </div>
+      <input
+        type="submit"
+        :value="formOption.isUpdate ? 'Update' : 'Create'"
+        @click="submitForm"
+      />
+    </div>
+    <div v-else>
+      <div class="tabs">
+        <div
+          class="tab"
+          :class="{ active: formOption.tab === 'choose' }"
+          @click="formOption.tab = 'choose'"
+        >
+          Choose
         </div>
-        <!-- todo -->
-        <!-- <div class="checkboxes">
-          <label class="cb_container">
-            Is Original
-            <input type="checkbox" v-model="formData.isOriginal" />
-            <span class="checkmark"></span>
-          </label>
-          <label class="cb_container">
-            Is No Copyright
-            <input type="checkbox" v-model="formData.isNC" />
-            <span class="checkmark"></span>
-          </label>
-        </div>-->
-      </slot>
-      <input type="submit" :value="actionText + ' ' + itemType" />
-      <div
-        class="switch_tab"
-        @click="formOption.tab = 'choose'"
-        v-if="!formOption.isUpdate"
-      >
-        or Select Existing {{ itemType }}
+        <div
+          class="tab"
+          :class="{ active: formOption.tab === 'form' }"
+          @click="formOption.tab = 'form'"
+        >
+          Create
+        </div>
       </div>
-    </form>
-
-    <!-- existing song chooser -->
-    <form
-      @submit.prevent="$emit('submitExisting')"
-      v-if="formOption.tab === 'choose'"
-    >
-      <select id="songSelect" v-model="formOption.selected">
-        <option :value="null" disabled hidden
-          >Select an existing {{ itemType }}...</option
-        >
-        <option disabled>Your Unpublished {{ itemType }}s</option>
-        <option
-          v-for="item in formOption.privateList"
-          :value="item"
-          :key="item.id"
-          >{{ item.title ? item.title : item.id }}</option
-        >
-        <option disabled>Public {{ itemType }}s</option>
-        <option
-          v-for="item in formOption.publicList"
-          :value="item"
-          :key="item.id"
-          >{{ item.title ? item.title : item.id }}</option
-        >
-      </select>
-      <br />
-      <input type="submit" :value="'Done'" />
-      <div
-        class="switch_tab"
-        @click="formOption.tab = 'form'"
-        v-if="!formOption.isUpdate"
-      >
-        or {{ actionText }} New {{ itemType }}
+      <div v-if="formOption.tab === 'choose'">
+        <div class="list">
+          <div
+            v-for="item in formOption.publicList"
+            :key="item.id"
+            :class="{ item: true, active: formOption.selected === item }"
+            @click="selectItem(item)"
+          >
+            <div class="title">{{ item.title }}</div>
+            <div class="artist">{{ item.artist }}</div>
+          </div>
+        </div>
+        <input
+          type="submit"
+          value="Select"
+          @click="submitExisting"
+          :disabled="!formOption.selected"
+        />
       </div>
-    </form>
+    </div>
   </div>
 </template>
 
@@ -140,7 +64,24 @@ import vSelect from "vue-select";
 
 export default {
   name: "InfoForm",
-  props: ["formData", "formOption", "isCreate", "itemType", "tags"],
+  props: {
+    formData: {
+      type: Object,
+      required: true,
+    },
+    formOption: {
+      type: Object,
+      required: true,
+    },
+    itemType: {
+      type: String,
+      required: true,
+    },
+    tags: {
+      type: Array,
+      default: () => [],
+    },
+  },
   components: {
     vSelect,
   },
@@ -149,18 +90,130 @@ export default {
       return this.formOption.isUpdate ? "Update" : "Create";
     },
   },
+  methods: {
+    toggleTag(tag) {
+      const index = this.formData.tags.indexOf(tag);
+      if (index === -1) {
+        this.formData.tags.push(tag);
+      } else {
+        this.formData.tags.splice(index, 1);
+      }
+    },
+    selectItem(item) {
+      this.formOption.selected = item;
+    },
+    submitForm() {
+      this.$emit("submitForm");
+    },
+    submitExisting() {
+      this.$emit("submitExisting");
+    },
+  },
 };
 </script>
 
 <style scoped>
-.cb_container {
-  font-size: 15px;
-  margin-bottom: 10px;
-  margin-top: 10px;
+.form {
+  padding: 20px;
 }
-.checkboxes {
-  background-color: rgb(109, 109, 109);
-  padding: 6px 15px;
-  margin: 3px 0;
+
+.tabs {
+  display: flex;
+  justify-content: space-evenly;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.5s;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.active {
+  border-bottom: solid 2px white;
+}
+
+.tab:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.item {
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.5s;
+}
+
+.item:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.item.active {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.title {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.artist {
+  opacity: 0.7;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.tag {
+  padding: 5px 10px;
+  margin: 5px;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: background-color 0.5s;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tag.active {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.tag:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+input[type="submit"] {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.5s;
+}
+
+input[type="submit"]:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+input[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.file-info {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
 }
 </style>

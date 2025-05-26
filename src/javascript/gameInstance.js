@@ -550,14 +550,21 @@ export default class GameInstance {
     if (song.keys && song.keys != 4) this.createTracks(Number(song.keys));
     if (song.srcMode === "youtube") {
       this.ytPlayer.loadYoutubeVideo(song.youtubeId);
-    } else if (song.srcMode === "url") {
+    } else if (song.srcMode === "url" || song.srcMode === "file") {
+      // Поддерживаем как обычные URL, так и локальные файлы (DataURL)
       this.vm.audio.loadSong(
         song.url,
         false,
-        this.vm.songLoaded,
+        () => {
+          this.loading = false;
+          console.log('[GameInstance] Аудио загружено, вызываем songLoaded');
+          if (this.vm.songLoaded) this.vm.songLoaded();
+        },
         this.vm.gameEnded,
         this.vm.ytError
       );
+    } else {
+      this.loading = false;
     }
   }
 
@@ -576,7 +583,7 @@ export default class GameInstance {
 
   pauseGame() {
     this.paused = true;
-    if (this.vm.srcMode === "url") {
+    if (this.vm.srcMode === "url" || this.vm.srcMode === "file") {
       return this.audio.pause();
     } else if (this.vm.srcMode === "youtube") {
       return this.ytPlayer.pauseVideo();
@@ -587,7 +594,7 @@ export default class GameInstance {
     if (!firstPlay && this.paused) this.reposition();
     this.paused = false;
     this.seekingTime = null;
-    if (this.vm.srcMode === "url") {
+    if (this.vm.srcMode === "url" || this.vm.srcMode === "file") {
       this.audio.play();
     } else if (this.vm.srcMode === "youtube") {
       this.ytPlayer.playVideo();

@@ -1,0 +1,351 @@
+{
+  "meta": {
+    "version": 1,
+    "title": "Владимирский Централ",
+    "artist": "Unknown Artist",
+    "difficulty": "Normal",
+    "previewStart": 0,
+    "previewEnd": 10,
+    "music": "/songs/test/Владимирский Централ.mp3",
+    "mode": "4K",
+    "keys": 4
+  },
+  "timing": [
+    {
+      "time": 0,
+      "bpm": 120
+    }
+  ],
+  "notes": [
+    {
+      "time": 11.111,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 11.523,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 12.028,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 12.492,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 12.974,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 13.444,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 13.862,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 14.356,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 14.791,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 15.244,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 15.702,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 16.173,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 18.599,
+      "type": 1,
+      "lane": "jk"
+    },
+    {
+      "time": 19.522,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 20.045,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 22.175,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 22.976,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 23.609,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 24.091,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 24.822,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 25.792,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 26.54,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 27.196,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 27.701,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 29.06,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 30.563,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 31.045,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 33.025,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 34.157,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 34.894,
+      "type": 1,
+      "lane": "kj"
+    },
+    {
+      "time": 36.612,
+      "type": 1,
+      "lane": "fj"
+    },
+    {
+      "time": 37.442,
+      "type": 1,
+      "lane": "dk"
+    },
+    {
+      "time": 38.377,
+      "type": 1,
+      "lane": "fj"
+    },
+    {
+      "time": 39.259,
+      "type": 1,
+      "lane": "dk"
+    },
+    {
+      "time": 40.304,
+      "type": 1,
+      "lane": "dk"
+    },
+    {
+      "time": 41.094,
+      "type": 1,
+      "lane": "fj"
+    },
+    {
+      "time": 42.028,
+      "type": 1,
+      "lane": "dk"
+    },
+    {
+      "time": 43.99,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 44.542,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 45.227,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 45.859,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 46.44,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 46.777,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 47.247,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 48.39,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 48.675,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 49.099,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 49.975,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 50.242,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 50.474,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 50.881,
+      "type": 1,
+      "lane": "d"
+    },
+    {
+      "time": 52.03,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 52.338,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 52.779,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 53.597,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 54.027,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 54.242,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 54.596,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 55.641,
+      "type": 1,
+      "lane": "df"
+    },
+    {
+      "time": 55.937,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 56.419,
+      "type": 1,
+      "lane": "k"
+    },
+    {
+      "time": 57.272,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 57.458,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 57.673,
+      "type": 1,
+      "lane": "f"
+    },
+    {
+      "time": 57.858,
+      "type": 1,
+      "lane": "j"
+    },
+    {
+      "time": 58.294,
+      "type": 1,
+      "lane": "df"
+    }
+  ]
+}

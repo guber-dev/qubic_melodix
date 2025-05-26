@@ -28,6 +28,7 @@ export default class Audio {
     finishedCallback,
     errorCallback
   ) {
+    console.log('[Audio] Попытка загрузки аудио:', songSrc);
     this.player?.unload();
     this.asBackground = asBackground;
 
@@ -57,14 +58,17 @@ export default class Audio {
     if (asBackground) this.player.play();
 
     this.player.on("load", () => {
+      console.log('[Audio] Аудио успешно загружено:', songSrc);
       if (loadedCallback) loadedCallback();
       Logger.log("Audio loaded");
     });
     this.player.on("end", () => {
+      console.log('[Audio] Воспроизведение завершено');
       if (finishedCallback) finishedCallback();
       if (asBackground) this.playBgm(this.player._src);
     });
-    this.player.on("loaderror", () => {
+    this.player.on("loaderror", (id, error) => {
+      console.error('[Audio] Ошибка загрузки аудио:', songSrc, error);
       if (errorCallback) errorCallback();
     });
   }

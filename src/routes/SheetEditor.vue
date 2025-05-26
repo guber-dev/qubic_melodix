@@ -45,6 +45,8 @@
           :class="{ disabled: !isSheetOwner }"
           >Publish</a
         >
+        <a href="#" @click.prevent="exportChart" style="margin-left: 10px;">Export chart.json</a>
+        <a href="#" @click.prevent="playChart" style="margin-left: 10px;">Play Chart</a>
       </div>
     </div>
 
@@ -92,35 +94,7 @@
           >
             <div style="padding-right: 20px; opacity: 0.5;">Edit</div>
           </SongListItem>
-          <div
-            v-show="gameSheetInfo"
-            style="height: 200px;"
-            v-if="srcMode == 'youtube' && youtubeId"
-          >
-            <div
-              v-if="initialized"
-              style="
-                position: absolute;
-                width: 100%;
-                height: 200px;
-                cursor: pointer;
-              "
-              @click="instance.paused ? songLoaded() : pauseGame()"
-            ></div>
-            <Youtube
-              id="ytPlayer_editor"
-              ref="youtube"
-              width="100%"
-              height="200px"
-              :video-id="youtubeId"
-              :player-vars="$store.state.ytVars"
-              :nocookie="$store.state.ytVars.nocookie"
-              @playing="songLoaded"
-              @error="ytError"
-              @paused="ytPaused"
-              @ended="ytPaused"
-            ></Youtube>
-          </div>
+
         </div>
 
         <div class="column middle" :class="{ disabled: !initialized }">
@@ -270,11 +244,40 @@ import Publish from "../components/editor/Publish.vue";
 import Loading from "../components/ui/Loading.vue";
 import GameMixin from "../mixins/gameMixin";
 import VueSlider from "vue-slider-component";
-import { Youtube } from "vue-youtube";
 import { tween } from "shifty";
 import "vue-slider-component/theme/antd.css";
 import "vue-awesome/icons/redo";
 import "vue-awesome/icons/undo";
+
+// Импортируем ChartManager
+class ChartManager {
+  static getAllCharts() {
+    try {
+      const charts = localStorage.getItem('melodixCharts');
+      return charts ? JSON.parse(charts) : {};
+    } catch (error) {
+      console.error('[ChartManager] Ошибка загрузки чартов:', error);
+      return {};
+    }
+  }
+
+  static saveChart(chartId, chartData) {
+    try {
+      const charts = this.getAllCharts();
+      charts[chartId] = {
+        ...chartData,
+        dateUpdated: { seconds: Date.now() / 1000 },
+        id: chartId
+      };
+      localStorage.setItem('melodixCharts', JSON.stringify(charts));
+      console.log(`[ChartManager] Чарт ${chartId} сохранен`);
+      return true;
+    } catch (error) {
+      console.error('[ChartManager] Ошибка сохранения чарта:', error);
+      return false;
+    }
+  }
+}
 
 export default {
   name: "SheetEditor",
@@ -282,7 +285,6 @@ export default {
     Visualizer,
     InfoEditor,
     VueSlider,
-    Youtube,
     SheetTable,
     SongListItem,
     Loading,
@@ -303,9 +305,14 @@ export default {
       disabled: false,
       songInfo: {
         id: null,
+        title: '',
+        artist: '',
+        url: '',
       },
       sheetInfo: {
         id: null,
+        title: '',
+        keys: 4,
       },
       gameSheetInfo: null,
       loading: false,
@@ -314,10 +321,11 @@ export default {
       leftTab: 1,
       disableMappingTable: false,
       options: {
-        soundEffect: true, //eidtor hit sound effect
+        soundEffect: true,
         lowerHitLine: true,
       },
       sheetChanged: false,
+      srcMode: "url",
     };
   },
   computed: {
@@ -325,16 +333,10 @@ export default {
       return (this.instance.playTime - this.instance.noteDelay).toFixed(2);
     },
     isSheetOwner() {
-      return (
-        !this.sheetInfo.id ||
-        this.sheetInfo.createdBy === this.$store.state.currentUser.uid
-      );
+      return true;
     },
     isSongOwner() {
-      return (
-        !this.songInfo.id ||
-        this.songInfo.createdBy === this.$store.state.currentUser.uid
-      );
+      return true;
     },
     sliderMinLength() {
       return (
@@ -366,45 +368,30 @@ export default {
         this.checkSongQuery();
       }
     },
+    songInfo: {
+      handler(val) {
+        console.log('[SheetEditor] watcher songInfo:', val);
+        if (val && val.id && val.url) { // Проверяем что есть и id и url
+          this.initialized = true;
+          console.log('[SheetEditor] initialized = true (трек загружен)');
+        }
+      },
+      deep: true
+    },
   },
   async mounted() {
+    console.log('[SheetEditor] mounted start');
     this.wrapper = this.$refs.wrapper;
     this.instance.reposition();
     const sheetId = this.$route.params.sheet;
     this.checkLoggedIn();
 
-    if (sheetId) {
-      this.loading = true;
-      try {
-        this.sheetInfo = await getSheet(sheetId);
-        this.songInfo = await getSong(this.sheetInfo.songId);
-        this.gameSheetInfo = await getGameSheet(sheetId);
-        this.gameSheetInfo.sheet = this.gameSheetInfo.sheet ?? [];
-        this.instance.loadSong(this.gameSheetInfo);
-        Logger.log(this.gameSheetInfo);
-        if (!this.isSheetOwner) {
-          this.$store.state.alert.warn(
-            "Warning, you do not have edit access to this sheet, any changes will not be saved!",
-            10000
-          );
-        }
-      } catch (err) {
-        Logger.error(err);
-        this.$store.state.gModal.show({
-          bodyText: "Sorry, something went wrong, maybe try refresh?",
-          isError: true,
-          showCancel: false,
-        });
-      }
-      this.loading = false;
-
-      if (this.$route.query.update) {
-        this.$store.state.alert.success("Successfully updated!");
-        this.$router.push({ query: null });
-      }
-    } else {
-      this.checkSongQuery();
-    }
+    // Всегда начинаем с пустого состояния
+    this.songInfo = { id: null, title: '', artist: '', url: '', mode: '4K', keys: 4 };
+    this.sheetInfo = { id: null, notes: [], timing: [{ time: 0, bpm: 120 }], mode: '4K', keys: 4 };
+    this.gameSheetInfo = { sheetId: null, sheet: [], song: this.songInfo };
+    this.initialized = false; // НЕ инициализирован до загрузки трека
+    console.log('[SheetEditor] создано пустое начальное состояние');
 
     window.onbeforeunload = () => {
       if (this.sheetChanged) {
@@ -429,33 +416,52 @@ export default {
       this.$router.push("/studio/");
     },
     async songLoaded() {
+      console.log('[SheetEditor] songLoaded вызван, initialized:', this.initialized, 'started:', this.started);
+      
       if (!this.initialized) {
-        this.instance.resetPlaying();
-        this.songLength = await this.getLength();
-        this.instance.pauseGame();
-        this.initialized = true;
-        if (this.$route.query.save) {
-          // refresh sheet data
-          await this.saveSheet();
-          this.$router.push({ query: null });
-          this.gameSheetInfo = await getGameSheet(this.$route.params.sheet);
-          this.instance.loadSong(this.gameSheetInfo);
+        // Ждем загрузки Howler
+        if (this.audio && this.audio.player) {
+          // Проверяем что аудио действительно загружено
+          const duration = this.audio.player.duration();
+          if (duration && duration > 0) {
+            this.songLength = duration;
+            this.instance.resetPlaying();
+            this.instance.pauseGame();
+            this.initialized = true;
+            console.log('[SheetEditor] Трек инициализирован, длительность:', this.songLength);
+            this.$store.state.alert.success('Трек готов к редактированию!');
+          } else {
+            console.log('[SheetEditor] Аудио еще загружается...');
+            // Попробуем еще раз через 100мс
+            setTimeout(() => this.songLoaded(), 100);
+            return;
+          }
+        } else {
+          console.log('[SheetEditor] Аудио плеер не готов');
+          return;
         }
       } else if (!this.started) {
+        // Запуск воспроизведения
         this.instance.paused = false;
         this.instance.startSong();
+        console.log('[SheetEditor] Воспроизведение запущено');
       } else {
+        // Возобновление
         this.resumeGame();
+        console.log('[SheetEditor] Воспроизведение возобновлено');
       }
     },
-    async getLength() {
+    getLength() {
       let length = 0;
-      if (this.srcMode === "youtube") {
-        length = await this.ytPlayer.getDuration();
-      } else {
-        length = this.audio.getDuration();
+      if (this.srcMode === 'file' || this.srcMode === 'url') {
+        // Получаем длительность из Howler
+        if (this.audio && this.audio.player) {
+          length = this.audio.player.duration();
+        }
+      } else if (this.$refs.audio) {
+        length = this.$refs.audio.duration;
       }
-      Logger.log(length);
+      Logger.log('getLength:', length);
       return Number(length.toFixed(3));
     },
     pauseGame() {
@@ -478,36 +484,30 @@ export default {
     async seeking(time) {
       if (!this.instance.paused) this.pauseGame();
       this.instance.seekingTime = time;
-      await this.instance.gameTimingLoop();
       this.instance.seeked();
       this.instance.repositionNotes();
+      
+      // Синхронизируем позицию только через Howler
+      if (this.audio && this.audio.player) {
+        this.audio.player.seek(time);
+      }
     },
     seekTo(time) {
       if (time < this.instance.startSongAt) {
         this.restartGame();
         this.pauseGame();
       } else {
-        this.seeking(time);
+        // Синхронизируем позицию только через Howler
+        if (this.audio && this.audio.player) {
+          this.audio.player.seek(time);
+        }
         this.instance.seekTo(time);
       }
     },
-    async smoothSeekTo(seekTime) {
-      await tween({
-        render: ({ x }) => {
-          this.seeking(x);
-        },
-        easing: "easeInOutQuad",
-        duration: 500,
-        from: { x: Number(this.instance.currentTime) },
-        to: { x: seekTime },
-      });
-      this.seekTo(seekTime);
-    },
     setPlaybackRate(rate) {
-      if (this.srcMode === "youtube") {
-        this.ytPlayer.setPlaybackRate(Number(rate));
-      } else {
-        this.audio.setRate(Number(rate));
+      // Устанавливаем скорость воспроизведения только через Howler
+      if (this.audio && this.audio.player) {
+        this.audio.player.rate(Number(rate));
       }
       this.instance.reposition();
     },
@@ -526,8 +526,20 @@ export default {
     },
     async newEditor() {
       if (await this.saveWarning()) {
-        this.$router.push("/editor/");
+        // Очищаем localStorage
+        localStorage.removeItem('localChart');
+        console.log('[SheetEditor] localStorage очищен');
+        
+        // Сбрасываем состояние
+        this.songInfo = { id: null, title: '', artist: '', url: '', mode: '4K', keys: 4 };
+        this.sheetInfo = { id: null, notes: [], timing: [{ time: 0, bpm: 120 }], mode: '4K', keys: 4 };
+        this.gameSheetInfo = { sheetId: null, sheet: [], song: this.songInfo };
+        this.initialized = false;
+        this.sheetChanged = false;
+        
+        // Перезагружаем редактор
         this.reloadEditor();
+        this.$store.state.alert.success('Создан новый чарт');
       }
     },
     showPublishModal() {
@@ -549,30 +561,59 @@ export default {
     reorderSheet() {
       this.instance.timeArr.sort((a, b) => parseFloat(a.t) - parseFloat(b.t));
     },
-    async saveSheet() {
+    saveSheet() {
       this.reorderSheet();
       this.countTotal();
-      let sheet = {
-        id: this.sheetInfo.id,
-        sheet: JSON.stringify(this.instance.timeArr),
+      
+      // Преобразуем ноты из формата Rhythm+ в формат chart.json
+      const keyToLane = { d: 0, f: 1, j: 2, k: 3 };
+      const notes = (this.instance.timeArr || []).map(note => ({
+        time: note.t,
+        type: note.type || 1,
+        lane: keyToLane[note.k] !== undefined ? keyToLane[note.k] : 0
+      }));
+      
+      // Генерируем уникальный ID для чарта
+      const chartId = `chart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Формируем структуру чарта
+      const chart = {
+        meta: {
+          version: 1,
+          title: this.songInfo.title || "Untitled",
+          artist: this.songInfo.artist || "Unknown",
+          difficulty: this.sheetInfo.difficulty || "Normal",
+          previewStart: 0,
+          previewEnd: 10,
+          music: this.songInfo.normalPath || this.songInfo.url || "",
+          mode: this.sheetInfo.mode || "4K",
+          keys: this.sheetInfo.keys || 4
+        },
+        timing: this.sheetInfo.timing || [{ time: 0, bpm: 120 }],
+        notes: notes
       };
-      if (this.sheetInfo.length) sheet.length = this.sheetInfo.length;
-      if (this.sheetInfo.noteCount) sheet.noteCount = this.sheetInfo.noteCount;
-      try {
-        await updateSheet(sheet);
-        this.$store.state.alert.success("Sheet saved!");
-      } catch (err) {
-        this.$store.state.alert.error(
-          "Error occurred while saving, please try again.",
-          6000
-        );
+      
+      // Сохраняем через ChartManager
+      const success = ChartManager.saveChart(chartId, chart);
+      
+      // Также сохраняем музыкальный файл, если он есть
+      if (this.songInfo.file) {
+        ChartManager.saveMusicFile(chartId, this.songInfo.file);
+        console.log('[SheetEditor] Музыкальный файл сохранен для чарта:', chartId);
       }
-      // save local backup
-      let local = JSON.parse(localStorage.getItem("localSheetBackup")) || {};
-      local[this.sheetInfo.id] = sheet;
-      localStorage.setItem("localSheetBackup", JSON.stringify(local));
-
-      this.sheetChanged = false;
+      
+      if (success) {
+        this.sheetChanged = false;
+        console.log('[SheetEditor] Чарт сохранен через ChartManager:', chart);
+        console.log('[SheetEditor] Проверяем localStorage после сохранения:', ChartManager.getAllCharts());
+        console.log('[SheetEditor] Все ключи localStorage:', Object.keys(localStorage));
+        this.$store.state.alert.success(`Чарт "${chart.meta.title}" сохранён! Нот: ${notes.length}. ID: ${chartId}`);
+        
+        // Обновляем список песен в SongSelect (если он открыт)
+        this.$root.$emit('chart-saved');
+      } else {
+        this.$store.state.alert.error('Ошибка сохранения чарта!');
+      }
     },
     countTotal() {
       const lastNote = this.instance.timeArr[this.instance.timeArr.length - 1];
@@ -591,6 +632,138 @@ export default {
       this.$nextTick(() => {
         this.$store.state.redirecting = false;
       });
+    },
+
+    exportChart() {
+      // Используем ту же логику что и в saveSheet
+      this.reorderSheet();
+      this.countTotal();
+      
+      // Преобразуем ноты из формата Rhythm+ в формат chart.json
+      const keyToLane = { d: 0, f: 1, j: 2, k: 3 };
+      const notes = (this.instance.timeArr || []).map(note => ({
+        time: note.t,
+        type: note.type || 1,
+        lane: keyToLane[note.k] !== undefined ? keyToLane[note.k] : 0
+      }));
+      
+      // Генерируем уникальный ID для чарта (если экспортируем впервые)
+      const chartId = `chart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Формируем структуру chart.json
+      const chart = {
+        meta: {
+          version: 1,
+          title: this.songInfo.title || "Untitled",
+          artist: this.songInfo.artist || "Unknown",
+          difficulty: this.sheetInfo.difficulty || "Normal",
+          previewStart: 0,
+          previewEnd: 10,
+          music: this.songInfo.normalPath || this.songInfo.url || "",
+          mode: this.sheetInfo.mode || "4K",
+          keys: this.sheetInfo.keys || 4
+        },
+        timing: this.sheetInfo.timing || [{ time: 0, bpm: 120 }],
+        notes: notes
+      };
+      
+      // АВТОСОХРАНЕНИЕ: Сохраняем чарт в ChartManager перед экспортом
+      const autoSaved = ChartManager.saveChart(chartId, chart);
+      
+      // Также сохраняем музыкальный файл, если он есть
+      if (this.songInfo.file) {
+        ChartManager.saveMusicFile(chartId, this.songInfo.file);
+        console.log('[SheetEditor] Музыкальный файл автосохранен при экспорте для чарта:', chartId);
+      }
+      
+      if (autoSaved) {
+        console.log('[SheetEditor] Чарт автоматически сохранен в ChartManager при экспорте');
+        this.$root.$emit('chart-saved'); // Обновляем список песен
+        this.sheetChanged = false;
+      }
+      
+      // Генерируем имя файла на основе названия трека
+      const sanitizedTitle = (this.songInfo.title || "chart").replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const fileName = `${sanitizedTitle}.json`;
+      
+      const blob = new Blob([JSON.stringify(chart, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 0);
+      
+      // Показываем сообщение пользователю
+      this.$store.state.alert.success(`✅ Чарт "${chart.meta.title}" экспортирован И автосохранен! Нот: ${notes.length}. Теперь он доступен в списке песен!`);
+    },
+    loadGameSheetInfo(gameSheetInfo) {
+      console.log('[SheetEditor] loadGameSheetInfo вызван:', gameSheetInfo);
+      
+      // Обновляем данные компонента
+      this.songInfo = {
+        id: 'local',
+        title: gameSheetInfo.meta.title,
+        artist: gameSheetInfo.meta.artist,
+        url: gameSheetInfo.meta.music,
+        srcMode: gameSheetInfo.srcMode || 'file',
+        mode: gameSheetInfo.meta.mode,
+        keys: gameSheetInfo.meta.keys
+      };
+      
+      this.sheetInfo = {
+        id: 'sheet_local',
+        title: `${gameSheetInfo.meta.title} [${gameSheetInfo.meta.mode}]`,
+        keys: gameSheetInfo.meta.keys,
+        difficulty: gameSheetInfo.meta.difficulty || 'Normal',
+        timing: gameSheetInfo.timing || [{ time: 0, bpm: 120 }],
+        notes: gameSheetInfo.notes || [],
+        mode: gameSheetInfo.meta.mode
+      };
+      
+      // Формируем song-объект для движка Rhythm+
+      const song = {
+        title: gameSheetInfo.meta.title,
+        artist: gameSheetInfo.meta.artist,
+        url: gameSheetInfo.meta.music, // DataURL
+        srcMode: gameSheetInfo.srcMode || 'file',
+        mode: gameSheetInfo.meta.mode,
+        keys: gameSheetInfo.meta.keys,
+        sheet: gameSheetInfo.notes || [],
+        timing: gameSheetInfo.timing || [{ time: 0, bpm: 120 }],
+        startAt: 0,
+        visualizerName: null
+      };
+      
+      if (this.instance && typeof this.instance.loadSong === 'function') {
+        this.instance.loadSong(song);
+        console.log('[SheetEditor] instance.loadSong вызван с song:', song);
+      }
+    },
+    playChart() {
+      // Сначала сохраняем чарт
+      this.saveSheet();
+      
+      // Получаем последний сохраненный чарт
+      const charts = ChartManager.getAllCharts();
+      const chartIds = Object.keys(charts);
+      
+      if (chartIds.length > 0) {
+        // Берем последний по времени создания
+        const latestChartId = chartIds.reduce((latest, current) => {
+          return charts[current].dateUpdated.seconds > charts[latest].dateUpdated.seconds ? current : latest;
+        });
+        
+        // Переходим к игре с этим чартом
+        this.$router.push(`/game/${latestChartId}`);
+        this.$store.state.alert.success('Переход к игре с вашим чартом!');
+      } else {
+        this.$store.state.alert.error('Сначала сохраните чарт!');
+      }
     },
   },
   beforeRouteLeave: async function (to, from, next) {

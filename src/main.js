@@ -7,7 +7,8 @@ import VueConfetti from "vue-confetti";
 import App from "./App.vue";
 import router from "./helpers/router";
 import { store } from "./helpers/store";
-import { auth, remoteConfig } from "./helpers/firebaseConfig";
+import { auth } from "./helpers/firebaseConfig";
+// remoteConfig убран для независимости от серверов Rhythm Plus
 import Icon from "vue-awesome/components/Icon";
 import * as Sentry from "@sentry/vue";
 import { Integrations } from "@sentry/tracing";
@@ -93,16 +94,17 @@ new Vue({
         });
       }
     });
-    remoteConfig
-      .fetchAndActivate()
-      .then(() => {
-        const config = remoteConfig.getAll();
-        this.$store.commit("setRemoteConfig", config);
-        Logger.log("got config", config);
-      })
-      .catch((err) => {
-        Logger.error(err);
-      });
+    // Отключили загрузку remoteConfig для независимости от серверов Rhythm Plus
+    // remoteConfig
+    //   .fetchAndActivate()
+    //   .then(() => {
+    //     const config = remoteConfig.getAll();
+    //     this.$store.commit("setRemoteConfig", config);
+    //     Logger.log("got config", config);
+    //   })
+    //   .catch((err) => {
+    //     Logger.error(err);
+    //   });
   },
   render: (h) => h(App),
 }).$mount("#app");

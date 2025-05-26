@@ -1,13 +1,13 @@
 import VueRouter from "vue-router";
 import Home from "../routes/Home.vue";
 import Game from "../routes/Game.vue";
-import Auth from "../routes/Auth.vue";
 import Result from "../routes/Result.vue";
 import Rankings from "../routes/Rankings.vue";
 import SongSelect from "../routes/SongSelect.vue";
 import MyStudio from "../routes/MyStudio.vue";
 import SheetEditor from "../routes/SheetEditor.vue";
 import GameOverScreen from "../routes/GameOverScreen.vue";
+// import ChartEditor from "../routes/ChartEditor.vue";
 import { sendPageview } from "./analytics";
 
 const router = new VueRouter({
@@ -17,19 +17,19 @@ const router = new VueRouter({
       name: "home",
       path: "/",
       component: Home,
-      meta: { requireBg: true, requireSignin: true },
+      meta: { requireBg: true },
     },
     {
       name: "menu",
       path: "/menu",
       component: SongSelect,
-      meta: { requireBg: true, requireSignin: true, title: "Song Select" },
+      meta: { requireBg: true, title: "Song Select" },
     },
     {
       name: "studio",
       path: "/studio",
       component: MyStudio,
-      meta: { requireBg: true, requireSignin: true, title: "My Studio" },
+      meta: { requireBg: true, title: "My Studio" },
     },
     {
       name: "rankings",
@@ -38,22 +38,16 @@ const router = new VueRouter({
       meta: { requireBg: true, title: "Rankings" },
     },
     {
-      path: "/game",
+      path: "/game/:sheet",
+      name: "game",
       component: Game,
-      children: [
-        {
-          name: "game",
-          path: ":sheet",
-          component: Game,
-          meta: { requireSignin: true, title: "Game" },
-        },
-      ],
+      meta: { title: "Game" },
     },
     {
       name: "tutorial",
       path: "/tutorial",
       component: Game,
-      meta: { requireSignin: true, title: "Tutorial" },
+      meta: { title: "Tutorial" },
     },
     {
       path: "/result",
@@ -89,19 +83,14 @@ const router = new VueRouter({
           name: "editor",
           path: ":sheet",
           component: SheetEditor,
-          meta: { requireSignin: true, title: "Editor" },
+          meta: { title: "Editor" },
         },
       ],
     },
     {
-      name: "account",
-      path: "/account",
-      component: Auth,
-      meta: {
-        requireBg: true,
-        requireSignin: true,
-        title: "Account and Settings",
-      },
+      path: "/chart-editor-test",
+      // component: ChartEditor,
+      meta: { title: "Chart Editor (TEST)" },
     },
     { path: "*", redirect: { path: "/?notfound=true" } },
   ],

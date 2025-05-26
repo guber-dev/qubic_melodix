@@ -260,6 +260,48 @@ import "vue-awesome/icons/regular/pause-circle";
 import "vue-awesome/icons/play";
 import "vue-awesome/icons/cog";
 import "vue-awesome/icons/info-circle";
+
+// Импортируем ChartManager из SongSelect
+class ChartManager {
+  static getAllCharts() {
+    try {
+      const charts = localStorage.getItem('melodixCharts');
+      return charts ? JSON.parse(charts) : {};
+    } catch (error) {
+      console.error('[ChartManager] Ошибка загрузки чартов:', error);
+      return {};
+    }
+  }
+
+  static getChart(chartId) {
+    const charts = this.getAllCharts();
+    return charts[chartId] || null;
+  }
+
+  static saveMusicFile(chartId, file) {
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        localStorage.setItem(`melodix_music_${chartId}`, dataUrl);
+        console.log(`[ChartManager] Музыка для чарта ${chartId} сохранена как DataURL`);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('[ChartManager] Ошибка сохранения музыки:', error);
+    }
+  }
+
+  static getMusicDataUrl(chartId) {
+    try {
+      return localStorage.getItem(`melodix_music_${chartId}`);
+    } catch (error) {
+      console.error('[ChartManager] Ошибка загрузки музыки:', error);
+      return null;
+    }
+  }
+}
+
 const isDev = process.env.NODE_ENV === "development";
 
 export default {
@@ -319,17 +361,82 @@ export default {
   methods: {
     async playWithId(sheetId) {
       try {
-        let song = await getGameSheet(sheetId);
+        // Простая схема: читаем файлы из /public/songs/test/
+        let chartPath = "/songs/test/chart.json"; // по умолчанию (bronx)
+        
+        if (sheetId === 'tame_impala') {
+          chartPath = "/songs/test/the_less_i_know_the_better.json";
+        } else if (sheetId === 'vladimir') {
+          chartPath = "/songs/test/vladimir.json";  
+        } else if (sheetId === 'bronx') {
+          chartPath = "/songs/test/bronx.json";
+        }
+        
+        console.log(`[Game] Загружаем чарт: ${chartPath}`);
+        const response = await fetch(chartPath);
+        const chart = await response.json();
+        
+        // Сопоставление lane → клавиша
+        const laneToKey = ["d", "f", "j", "k"];
+        const keyToLane = { "d": 0, "f": 1, "j": 2, "k": 3 };
+        
+        const notes = chart.notes.map(n => {
+          let lane = n.lane;
+          
+          // Если lane - строка, преобразуем в число
+          if (typeof lane === 'string') {
+            // Обработка комбинированных клавиш типа "df", "jk"
+            if (lane.length > 1) {
+              // Для комбинаций берем первую клавишу
+              lane = keyToLane[lane[0]];
+            } else {
+              lane = keyToLane[lane];
+            }
+          }
+          
+          return {
+            t: n.time,
+            k: laneToKey[lane]
+          };
+        });
+
+        // Просто используем путь к музыке из чарта (серверная подача файлов)
+        const musicUrl = chart.meta.music;
+        console.log('[Game] Путь к музыке:', musicUrl);
+        
+        const song = {
+          ...chart.meta,
+          sheet: notes,
+          timing: chart.timing,
+          paused: false,
+          started: false,
+          length: chart.meta.length || 30,
+          songId: sheetId,
+          sheetId: sheetId,
+          srcMode: "url",
+          url: musicUrl,
+          keys: 4,
+          mode: "4K"
+        };
+        
+        console.log('[Game] Загружаемая песня:', {
+          title: song.title,
+          artist: song.artist,
+          musicUrl: musicUrl,
+          notesCount: notes.length,
+          srcMode: song.srcMode
+        });
+        
         this.instance.loadSong(song);
-        document.title = song.title + " - Rhythm+ Music Game";
+        document.title = song.title + " - Melodix";
       } catch (err) {
         this.$store.state.gModal.show({
-          bodyText: "Sorry, this song does not exist or is unavaliable.",
+          bodyText: "Извини, эта песня недоступна или не существует.",
           isError: true,
           showCancel: false,
           okCallback: this.exitGame,
         });
-        logError("song_load_error_" + sheetId);
+        console.error(err);
       }
     },
     handleHover() {

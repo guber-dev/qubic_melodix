@@ -143,7 +143,16 @@ export default {
   methods: {
     startSelected() {
       this.selectedSheet = this.selectedSheet ?? this.sheets[0];
-      this.$router.push("/game/" + this.selectedSheet.id);
+      
+      // Если выбрана песня с ID "local", переходим к локальному чарту
+      if (this.song && this.song.id === 'local') {
+        this.$router.push("/game/local");
+        console.log('[SongDetailPanel] Переход к локальному чарту');
+      } else {
+        // Иначе используем стандартный ID чарта
+        this.$router.push("/game/" + this.selectedSheet.id);
+        console.log('[SongDetailPanel] Переход к чарту:', this.selectedSheet.id);
+      }
     },
     goToEdit() {
       this.$router.push({ path: "/editor", query: { song: this.song.id } });
@@ -182,14 +191,22 @@ export default {
       if (this.song) {
         this.selectedSheet = null;
         if (this.sheets?.[0]) {
+          try {
           this.bestResult = await getBestScore(this.sheets[0].id);
+          } catch (e) {
+            this.bestResult = null; // Заглушка для теста
+          }
         }
       }
     },
     async selectedSheet() {
       this.bestResult = null;
       if (this.selectedSheet) {
+        try {
         this.bestResult = await getBestScore(this.selectedSheet.id);
+        } catch (e) {
+          this.bestResult = null; // Заглушка для теста
+        }
       }
     },
   },
@@ -276,7 +293,7 @@ export default {
   bottom: 30px;
   opacity: 0.5;
   cursor: pointer;
-  webkit-filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 1));
+  -webkit-filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 1));
   filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 1));
 }
 

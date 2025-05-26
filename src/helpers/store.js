@@ -150,7 +150,7 @@ export const store = new Vuex.Store({
       const darkPurple = {
         visualizer: "purpleSpace",
         buttonStyle: "colored",
-        logoAsset: "logo2.png",
+        logoAsset: "melodix_logo.png",
       };
       const flameOrange = {
         visualizer: "space",

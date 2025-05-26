@@ -3,10 +3,10 @@
     <transition name="slide-fade" mode="out-in">
       <div class="tutorial flex_hori" key="1" v-if="slide == 1">
         <div class="texts">
-          <div class="title">Welcome to Rhythm Plus!</div>
+          <div class="title">Welcome to Melodix!</div>
           <img class="logo" :src="img.logo" />
           <div>
-            Rhythm+ is a web-based Vertical Scrolling Rhythm Game (VSRG), you
+            Melodix is a web-based Vertical Scrolling Rhythm Game (VSRG), you
             can make, play, and share any songs from and with anyone!
           </div>
           <hr class="artist_hr" />
